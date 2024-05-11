@@ -1,65 +1,48 @@
 import requests
-import pandas as pd
 from bs4 import BeautifulSoup
 import mysql.connector
-from datetime import datetime
+import time
 
-# Connect to the MySQL database
-username = 'springstudent'
-password = 'springstudent'
-host = 'localhost'
-database = 'medexx'
-
+# Connect to MySQL database
 db = mysql.connector.connect(
-    user=username,
-    password=password,
-    host=host,
-    database=database
+    host="localhost",
+    user="yourusername",
+    password="yourpassword",
+    database="medex"
 )
-
-# Create a cursor object
 cursor = db.cursor()
 
-# Create a table to store medicine information
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS medicines (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        brand_name VARCHAR(255),
-        strength VARCHAR(255),
-        vitamin_info VARCHAR(255),
-        manufacturer VARCHAR(255),
-        date DATE
-    )
-''')
+# Create table if not exists
+cursor.execute("CREATE TABLE IF NOT EXISTS medicines (id INT AUTO_INCREMENT PRIMARY KEY, brand_name VARCHAR(255), strength VARCHAR(255), vitamin_info TEXT, manufacturer VARCHAR(255))")
 
-# Send a GET request to the URL
-url = 'https://medex.com.bd/brands?page=2'
-response = requests.get(url)
+# Scraping function
+def scrape_page(page_num):
+    url = f"https://medex.com.bd/brands?page={page_num}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        products = soup.find_all('div', class_='product-box')
+        for product in products:
+            brand_name = product.find('div', class_='col-xs-12 data-row-top').text.strip()
+            strength = product.find('span', class_='grey-ligten').text.strip()
+            vitamin_info = product.find('div', class_='col-xs-12').text.strip()
+            manufacturer = product.find('span', class_='data-row-company').text.strip()
 
-# Parse the HTML content
-soup = BeautifulSoup(response.content, 'html.parser')
+            # Insert into database
+            sql = "INSERT INTO medicines (brand_name, strength, vitamin_info, manufacturer) VALUES (%s, %s, %s, %s)"
+            val = (brand_name, strength, vitamin_info, manufacturer)
+            cursor.execute(sql, val)
+            db.commit()
+        print(f"Page {page_num} scraped successfully.")
+    else:
+        print(f"Failed to scrape page {page_num}. Status code: {response.status_code}")
 
-# Find all the product elements
-products = soup.find_all('div', class_='col-xs-12 col-sm-6 col-lg-4')
+# Scraping loop with rate limiting
+for page in range(1, 744):
+    scrape_page(page)
+    time.sleep(1)  # Adjust this value based on the server's tolerance
 
-# Loop through each product and extract the data
-for product in products:
-    # Extract the brand name
-    brand_name = product.find('div', class_='col-xs-12 data-row-top').text.strip()
-
-    # Extract the strength
-    strength = product.find('span', class_='grey-ligten').text.strip()
-
-    # Extract the vitamin information
-    vitamin_info = product.find('div', class_='col-xs-12').text.strip()
-
-    # Extract the company name
-    manufacturer = product.find('span', class_='data-row-company').text.strip()
-
-    # Insert the data into the MySQL database
-    query = "INSERT INTO medicines (brand_name, strength, vitamin_info, manufacturer, date) VALUES (%s, %s, %s, %s, %s)"
-    cursor.execute(query, (brand_name, strength, vitamin_info, manufacturer, datetime.today()))
-
-# Commit the changes and close the database connection
-db.commit()
+# Close database connection
+cursor.close()
 db.close()
