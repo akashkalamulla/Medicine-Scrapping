@@ -5,6 +5,9 @@ import threading
 from requests.exceptions import ConnectTimeout, ConnectionError
 import time
 
+class DataExtractionError(Exception):
+    pass
+
 # Connect to MySQL database
 db = mysql.connector.connect(
     host="localhost",
@@ -39,11 +42,36 @@ def scrape_page(page_num, data):
     products = soup.find_all('div', class_='product-box')
     for product in products:
         medicine = {}
-        medicine['brand_name'] = product.find('div', class_='col-xs-12 data-row-top').text.strip()
-        medicine['strength'] = product.find('span', class_='grey-ligten').text.strip()
-        medicine['vitamin_info'] = product.find('div', class_='col-xs-12').text.strip()
-        medicine['manufacturer'] = product.find('span', class_='data-row-company').text.strip()
-        data.append(medicine)
+        try:
+            brand_name_elem = product.find('div', class_='col-xs-12 data-row-top')
+            if brand_name_elem:
+                medicine['brand_name'] = brand_name_elem.text.strip()
+            else:
+                raise DataExtractionError("Brand name not found")
+
+            strength_elem = product.find('span', class_='grey-ligten')
+            if strength_elem:
+                medicine['strength'] = strength_elem.text.strip()
+            else:
+                raise DataExtractionError("Strength not found")
+
+            vitamin_info_elem = product.find('div', class_='col-xs-12')
+            if vitamin_info_elem:
+                medicine['vitamin_info'] = vitamin_info_elem.text.strip()
+            else:
+                raise DataExtractionError("Vitamin info not found")
+
+            manufacturer_elem = product.find('span', class_='data-row-company')
+            if manufacturer_elem:
+                medicine['manufacturer'] = manufacturer_elem.text.strip()
+            else:
+                raise DataExtractionError("Manufacturer not found")
+
+            data.append(medicine)
+        except DataExtractionError as e:
+            print(f"Error extracting data: {e}")
+            continue
+
     print(f"Page {page_num} scraped successfully.")
 
 # Worker function for threading
@@ -70,7 +98,7 @@ for thread in threads:
 # Insert data into database
 for medicine in data:
     sql = "INSERT INTO medicines (brand_name, strength, vitamin_info, manufacturer) VALUES (%s, %s, %s, %s)"
-    val = (medicine['brand_name'], medicine['strength'], medicine['vitamin_info'], medicine['manufacturer'])
+    val = (medicine.get('brand_name', ''), medicine.get('strength', ''), medicine.get('vitamin_info', ''), medicine.get('manufacturer', ''))
     cursor.execute(sql, val)
     db.commit()
 
