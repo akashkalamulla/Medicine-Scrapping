@@ -8,8 +8,8 @@ import time
 # Connect to MySQL database
 db = mysql.connector.connect(
     host="localhost",
-    user="yourusername",
-    password="yourpassword",
+    user="springstudent",
+    password="springstudent",
     database="medex"
 )
 cursor = db.cursor()
