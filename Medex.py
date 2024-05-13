@@ -1,9 +1,9 @@
 import requests
-from bs4 import BeautifulSoup
 import mysql.connector
 import threading
 from requests.exceptions import ConnectTimeout, ConnectionError
 import time
+from lxml import html
 
 class DataExtractionError(Exception):
     pass
@@ -38,32 +38,32 @@ def scrape_page(page_num, data):
         return
 
     # Process the response if successful
-    soup = BeautifulSoup(response.text, 'html.parser')
-    products = soup.find_all('div', class_='product-box')
+    tree = html.fromstring(response.content)
+    products = tree.xpath("//div[@class='product-box']")
     for product in products:
         medicine = {}
         try:
-            brand_name_elem = product.find('div', class_='col-xs-12 data-row-top')
+            brand_name_elem = product.xpath(".//div[@class='col-xs-12 data-row-top']")
             if brand_name_elem:
-                medicine['brand_name'] = brand_name_elem.text.strip()
+                medicine['brand_name'] = brand_name_elem[0].text.strip()
             else:
                 raise DataExtractionError("Brand name not found")
 
-            strength_elem = product.find('span', class_='grey-ligten')
+            strength_elem = product.xpath(".//span[@class='grey-ligten']")
             if strength_elem:
-                medicine['strength'] = strength_elem.text.strip()
+                medicine['strength'] = strength_elem[0].text.strip()
             else:
                 raise DataExtractionError("Strength not found")
 
-            vitamin_info_elem = product.find('div', class_='col-xs-12')
+            vitamin_info_elem = product.xpath(".//div[@class='col-xs-12']")
             if vitamin_info_elem:
-                medicine['vitamin_info'] = vitamin_info_elem.text.strip()
+                medicine['vitamin_info'] = vitamin_info_elem[0].text.strip()
             else:
                 raise DataExtractionError("Vitamin info not found")
 
-            manufacturer_elem = product.find('span', class_='data-row-company')
+            manufacturer_elem = product.xpath(".//span[@class='data-row-company']")
             if manufacturer_elem:
-                medicine['manufacturer'] = manufacturer_elem.text.strip()
+                medicine['manufacturer'] = manufacturer_elem[0].text.strip()
             else:
                 raise DataExtractionError("Manufacturer not found")
 
@@ -86,7 +86,7 @@ num_threads = 10
 threads = []
 data = []
 for i in range(num_threads):
-    pages = range(i + 1, 744, num_threads)
+    pages = range(i + 1, 100, num_threads)
     thread = threading.Thread(target=worker, args=(pages, data))
     threads.append(thread)
     thread.start()
