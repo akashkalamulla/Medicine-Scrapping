@@ -12,7 +12,13 @@ BOT_NAME = "Medicine_scraper"
 SPIDER_MODULES = ["Medicine_scraper.spiders"]
 NEWSPIDER_MODULE = "Medicine_scraper.spiders"
 
+DOWNLOAD_DELAY = 1
+RETRY_TIMES = 3
+RETRY_HTTP_CODES = [500, 502, 503, 504, 408]
 
+ITEM_PIPELINES = {
+    'myproject.pipelines.MedexPipeline': 300,
+}
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "Medicine_scraper (+http://www.yourdomain.com)"
 

@@ -7,7 +7,10 @@ from scrapy import signals
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-
+class MedexDownloaderMiddleware:
+    def process_request(self, request, spider):
+        if request.url.startswith("https://medex.com.bd/"):
+            request.meta["dont_retry"] = True
 
 class MedicineScraperSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
