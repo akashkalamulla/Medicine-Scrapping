@@ -15,8 +15,9 @@ driver.maximize_window()
 medicine_data = []
 
 # Loop through pages to scrape data
-for i in range(5):
-    print('Scraping page', i + 1)
+current_page = 1
+while current_page <= 783:  # Set the maximum page number
+    print('Scraping page', current_page)
 
     # Find all product links on the page
     product_links = driver.find_elements(By.CSS_SELECTOR, 'a.hoverable-block')
@@ -47,9 +48,10 @@ for i in range(5):
 
     try:
         # Click on next page button
-        next_button = driver.find_element(By.XPATH, '//*[@id="ms-block"]/section/div/nav/ul/li[15]/a')
+        next_button = driver.find_element(By.CSS_SELECTOR, 'a[rel="next"]')
         next_button.click()
         time.sleep(2)  # Wait for the page to load
+        current_page += 1
 
     except NoSuchElementException:
         print("No more pages to scrape")
@@ -60,7 +62,7 @@ connection = mysql.connector.connect(
     host="localhost",
     user="springstudent",
     password="springstudent",
-    database="medexx"
+    database="medex"
 )
 
 # Create cursor
