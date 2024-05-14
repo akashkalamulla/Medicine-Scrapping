@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException
 # Set up Chrome webdriver
 service = Service(executable_path="chromedriver.exe")
 driver = webdriver.Chrome(service=service)
-driver.get("https://medex.com.bd/brandspage=1")
+driver.get("https://medex.com.bd/brands?page=1")
 driver.maximize_window()
 
 # Initialize lists to store medicine details
