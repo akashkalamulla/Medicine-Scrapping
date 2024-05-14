@@ -1,57 +1,81 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
+import csv
 import mysql.connector
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 
 # Set up Chrome webdriver
 service = Service(executable_path="chromedriver.exe")
 driver = webdriver.Chrome(service=service)
-driver.get("https://medex.com.bd/brands?page=1")
+driver.get("https://medex.com.bd/brands")
 driver.maximize_window()
 
 # Initialize lists to store medicine details
 medicine_data = []
 
+# Define a function to extract medicine details
+def extract_medicine_details(url):
+    driver.get(url)
+    time.sleep(2)  # Wait for the page to load
+
+    try:
+        medicine_name = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, 'h1.page-heading-1-l.brand'))
+        ).text.strip()
+
+        strength = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//div[@title="Generic Name"]'))
+        ).text.strip()
+
+        nutrition_info = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//div[@title="Strength"]'))
+        ).text.strip()
+
+        manufacturer = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//div[@title="Manufactured by"]'))
+        ).text.strip()
+
+        unit_price = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.col-xs-12.packages-wrapper.mt-6'))
+        ).text.strip()
+
+        return (medicine_name, strength, nutrition_info, manufacturer, unit_price)
+
+    except TimeoutException as e:
+        print(f"TimeoutException while extracting information from {url}: {e}")
+        return None
+
 # Loop through pages to scrape data
 current_page = 1
-while current_page <= 783:  # Set the maximum page number
+while current_page <= 5:  # Set the maximum page number
     print('Scraping page', current_page)
 
     # Store current scroll position
     scroll_position = driver.execute_script("return window.scrollY;")
 
     # Find all product links on the page
-    product_links = driver.find_elements(By.CSS_SELECTOR, 'a.hoverable-block')
+    product_links = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'a.hoverable-block'))
+    )
 
     # Extract the href attribute of each product link
     product_links_urls = [link.get_attribute("href") for link in product_links]
 
     # Loop through each product link
     for url in product_links_urls:
-        # Navigate to the product page
-        driver.get(url)
-        time.sleep(2)  # Wait for the page to load
-
-        try:
-            # Extract medicine details
-            medicine_name = driver.find_element(By.CSS_SELECTOR, 'h1.page-heading-1-l.brand').text.strip()
-            strength = driver.find_element(By.XPATH, '//div[@title="Generic Name"]').text.strip()
-            nutrition_info = driver.find_element(By.XPATH, '//div[@title="Strength"]').text.strip()
-            manufacturer = driver.find_element(By.XPATH, '//div[@title="Manufactured by"]').text.strip()
-            unit_price = driver.find_element(By.CSS_SELECTOR, 'div.col-xs-12.packages-wrapper.mt-6').text.strip()
-            
-            # Append data to list
-            medicine_data.append((medicine_name, strength, nutrition_info, manufacturer, unit_price))
-
-        except NoSuchElementException as e:
-            print(f"Error extracting information from {url}: {e}")
-            continue
+        medicine_details = extract_medicine_details(url)
+        if medicine_details:
+            medicine_data.append(medicine_details)
 
     try:
         # Click on next page button
-        next_button = driver.find_element(By.CSS_SELECTOR, 'a[rel="next"]')
+        next_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="ms-block"]/section/div/nav/ul/li[15]/a'))
+        )
         next_button.click()
         time.sleep(2)  # Wait for the page to load
 
@@ -60,8 +84,8 @@ while current_page <= 783:  # Set the maximum page number
         
         current_page += 1
 
-    except NoSuchElementException:
-        print("No more pages to scrape")
+    except TimeoutException:
+        print("TimeoutException: No more pages to scrape")
         break
 
 # Connect to MySQL database
@@ -69,7 +93,7 @@ connection = mysql.connector.connect(
     host="localhost",
     user="springstudent",
     password="springstudent",
-    database="medex"
+    database="medexx"
 )
 
 # Create cursor
