@@ -19,6 +19,9 @@ current_page = 1
 while current_page <= 783:  # Set the maximum page number
     print('Scraping page', current_page)
 
+    # Store current scroll position
+    scroll_position = driver.execute_script("return window.scrollY;")
+
     # Find all product links on the page
     product_links = driver.find_elements(By.CSS_SELECTOR, 'a.hoverable-block')
 
@@ -51,6 +54,10 @@ while current_page <= 783:  # Set the maximum page number
         next_button = driver.find_element(By.CSS_SELECTOR, 'a[rel="next"]')
         next_button.click()
         time.sleep(2)  # Wait for the page to load
+
+        # Scroll back to the previous position
+        driver.execute_script(f"window.scrollTo(0, {scroll_position});")
+        
         current_page += 1
 
     except NoSuchElementException:
